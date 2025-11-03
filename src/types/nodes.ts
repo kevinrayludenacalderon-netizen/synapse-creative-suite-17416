@@ -25,6 +25,24 @@ export interface HookGeneratorNodeData extends BaseNodeData {
   count: number;
 }
 
+export interface BrandConfigNodeData extends BaseNodeData {
+  industria: string;
+  audiencia_objetivo: string;
+  palabras_prohibidas: string[];
+  limites: {
+    hook: number;
+    script: number;
+  };
+  conceptos_clave: string[];
+}
+
+export interface HookValidatorNodeData extends BaseNodeData {
+  hooks: any[];
+  config?: any;
+  validatedHooks?: any[];
+  scores?: number[];
+}
+
 // VFX Node Types
 export interface ImageInputNodeData extends BaseNodeData {
   imageUrl?: string;
@@ -68,6 +86,8 @@ export type NodeData =
   | TextInputNodeData
   | SmartSearchNodeData
   | HookGeneratorNodeData
+  | BrandConfigNodeData
+  | HookValidatorNodeData
   | ImageInputNodeData
   | DeepAnalysisNodeData
   | EffectApplierNodeData
@@ -113,6 +133,30 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
     description: 'Generate attention-grabbing hooks',
     color: 'hsl(var(--copy-primary))',
     defaultData: { inputText: '', frameworks: ['AIDA', 'PAS'], count: 5 },
+  },
+  brandConfig: {
+    type: 'brandConfig',
+    label: 'Brand Config',
+    category: ['copy'],
+    icon: '⚙️',
+    description: 'Configure industry/brand parameters',
+    color: 'hsl(var(--copy-primary))',
+    defaultData: {
+      industria: 'Inmobiliaria',
+      audiencia_objetivo: 'Jóvenes profesionales buscando su primer departamento',
+      palabras_prohibidas: ['explotar', 'boom', 'estallar', 'gigante', 'loco'],
+      limites: { hook: 12, script: 250 },
+      conceptos_clave: ['Análisis de Competencia', 'Gap analysis automático', 'Base de Insights'],
+    },
+  },
+  hookValidator: {
+    type: 'hookValidator',
+    label: 'Hook Validator',
+    category: ['copy'],
+    icon: '✅',
+    description: 'Validate and score hooks',
+    color: 'hsl(var(--copy-primary))',
+    defaultData: { hooks: [], scores: [] },
   },
   
   // VFX Nodes

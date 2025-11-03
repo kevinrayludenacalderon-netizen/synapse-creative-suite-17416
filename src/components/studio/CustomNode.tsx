@@ -191,6 +191,93 @@ export const CustomNode = memo(({ data, id }: NodeProps) => {
           </div>
         )}
 
+        {data.nodeType === 'brandConfig' && (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Industria</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-current"
+                placeholder="e.g., Inmobiliaria"
+                value={data.industria || ''}
+                onChange={(e) => updateNode(id, { industria: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Audiencia Objetivo</label>
+              <textarea
+                className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-current"
+                placeholder="e.g., Jóvenes profesionales..."
+                rows={2}
+                value={data.audiencia_objetivo || ''}
+                onChange={(e) => updateNode(id, { audiencia_objetivo: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Palabras Prohibidas (separadas por coma)</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-current"
+                placeholder="explotar, boom, estallar"
+                value={data.palabras_prohibidas?.join(', ') || ''}
+                onChange={(e) => updateNode(id, { palabras_prohibidas: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground block mb-1">Límite Hook (palabras)</label>
+                <input
+                  type="number"
+                  className="w-full px-2 py-1 bg-input border border-border rounded text-xs"
+                  value={data.limites?.hook || 12}
+                  onChange={(e) => updateNode(id, { limites: { ...data.limites, hook: parseInt(e.target.value) } })}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground block mb-1">Límite Script (palabras)</label>
+                <input
+                  type="number"
+                  className="w-full px-2 py-1 bg-input border border-border rounded text-xs"
+                  value={data.limites?.script || 250}
+                  onChange={(e) => updateNode(id, { limites: { ...data.limites, script: parseInt(e.target.value) } })}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Conceptos Clave (separados por coma)</label>
+              <textarea
+                className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-current"
+                placeholder="Análisis de Competencia, Gap analysis"
+                rows={2}
+                value={data.conceptos_clave?.join(', ') || ''}
+                onChange={(e) => updateNode(id, { conceptos_clave: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+              />
+            </div>
+          </div>
+        )}
+
+        {data.nodeType === 'hookValidator' && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Connect a Hook Generator and Brand Config to validate hooks
+            </p>
+            <div className="text-xs">
+              <div className="font-medium text-copy-primary mb-1">Validation Rules:</div>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>✓ Word limit check</li>
+                <li>✓ Forbidden words detection</li>
+                <li>✓ Generic CTA detection</li>
+                <li>✓ Auto-correction (score &lt; 70)</li>
+                <li>✓ Scoring (0-100)</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
         {data.nodeType === 'imageInput' && (
           <div className="space-y-2">
             <input
@@ -375,6 +462,44 @@ export const CustomNode = memo(({ data, id }: NodeProps) => {
                 </li>
               ))}
             </ul>
+          )}
+          
+          {/* Brand Config Output */}
+          {data.nodeType === 'brandConfig' && data.output.brandConfig && (
+            <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
+              <div><strong className="text-copy-primary">Industria:</strong> {data.output.brandConfig.industria}</div>
+              <div><strong className="text-copy-primary">Límites:</strong> Hook: {data.output.brandConfig.limites.hook}, Script: {data.output.brandConfig.limites.script}</div>
+            </div>
+          )}
+          
+          {/* Hook Validator Output */}
+          {data.nodeType === 'hookValidator' && data.output.validatedHooks && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="text-xs font-medium text-copy-primary">
+                {data.output.passedHooks}/{data.output.totalHooks} hooks passed
+              </div>
+              {data.output.validatedHooks.slice(0, 3).map((result: any, i: number) => (
+                <div key={i} className={cn(
+                  "p-2 rounded text-xs",
+                  result.passed ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
+                )}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium">Score: {result.score}/100</span>
+                    {result.passed ? '✅' : '❌'}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {result.corrected !== result.original ? result.corrected : result.original}
+                  </div>
+                  {result.issues && (
+                    <div className="mt-1 text-xs opacity-70">
+                      {result.issues.exceedsLimit && '⚠️ Límite excedido '}
+                      {result.issues.hasForbiddenWords && '⚠️ Palabras prohibidas '}
+                      {result.issues.hasGenericCTA && '⚠️ CTA genérico'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
           
           {/* Deep Analysis Output */}

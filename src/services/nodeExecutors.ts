@@ -67,6 +67,9 @@ export async function executeHookGenerator(
     const inputText = nodeData.inputText || getInputValue(inputs, 'text') || '';
     const frameworks = nodeData.frameworks || ['AIDA', 'PAS'];
     const count = nodeData.count || 5;
+    
+    // Get brand config if available
+    const brandConfig = getInputValue(inputs, 'brandConfig');
 
     if (!inputText) {
       throw new Error('No input text provided');
@@ -81,11 +84,29 @@ export async function executeHookGenerator(
 
     const selectedFrameworks = frameworks.map((f: string) => `${f} (${frameworkDescriptions[f as keyof typeof frameworkDescriptions]})`).join(', ');
 
-    const prompt = `Generate ${count} attention-grabbing hooks for the following content. Use these frameworks: ${selectedFrameworks}
+    let prompt = `Generate ${count} attention-grabbing hooks for the following content. Use these frameworks: ${selectedFrameworks}
 
-Content: ${inputText}
+Content: ${inputText}`;
 
-Generate ${count} unique, compelling hooks that would work on social media. Format as a JSON array of objects with "hook" and "framework" properties.`;
+    // Add brand config context if available
+    if (brandConfig) {
+      prompt += `
+
+CONTEXT (Brand Configuration):
+- Industry: ${brandConfig.industria}
+- Target Audience: ${brandConfig.audiencia_objetivo}
+- FORBIDDEN WORDS (DO NOT USE): ${brandConfig.palabras_prohibidas.join(', ')}
+- Word Limit per Hook: ${brandConfig.limites.hook} words
+- Key Concepts to incorporate: ${brandConfig.conceptos_clave.join(', ')}
+
+STRICT RULES:
+1. Never use forbidden words
+2. Keep each hook under ${brandConfig.limites.hook} words
+3. Speak directly to: ${brandConfig.audiencia_objetivo}
+4. Use concepts from: ${brandConfig.conceptos_clave.join(', ')}`;
+    }
+
+    prompt += `\n\nGenerate ${count} unique, compelling hooks. Format as a JSON array of objects with "hook", "framework", and "wordCount" properties.`;
 
     const response = await geminiService.generateText({ prompt });
 
@@ -98,6 +119,7 @@ Generate ${count} unique, compelling hooks that would work on social media. Form
       hooks = response.split('\n').filter(line => line.trim()).map((line, i) => ({
         hook: line.replace(/^\d+\.\s*/, '').replace(/^[-*]\s*/, ''),
         framework: frameworks[i % frameworks.length],
+        wordCount: line.split(' ').length,
       }));
     }
 
@@ -107,12 +129,126 @@ Generate ${count} unique, compelling hooks that would work on social media. Form
         hooks: Array.isArray(hooks) ? hooks : [hooks],
         inputText,
         frameworks,
+        brandConfig,
       },
     };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Hook generation failed',
+    };
+  }
+}
+
+export async function executeBrandConfig(nodeData: any): Promise<NodeExecutionResult> {
+  return {
+    success: true,
+    data: {
+      brandConfig: {
+        industria: nodeData.industria || 'General',
+        audiencia_objetivo: nodeData.audiencia_objetivo || '',
+        palabras_prohibidas: nodeData.palabras_prohibidas || [],
+        limites: nodeData.limites || { hook: 12, script: 250 },
+        conceptos_clave: nodeData.conceptos_clave || [],
+      },
+    },
+  };
+}
+
+export async function executeHookValidator(
+  nodeData: any,
+  inputs: Record<string, any>
+): Promise<NodeExecutionResult> {
+  try {
+    const hooks = getInputValue(inputs, 'hooks') || nodeData.hooks || [];
+    const brandConfig = getInputValue(inputs, 'brandConfig') || nodeData.config;
+
+    if (!hooks || hooks.length === 0) {
+      throw new Error('No hooks provided for validation');
+    }
+
+    if (!brandConfig) {
+      throw new Error('No brand configuration provided');
+    }
+
+    const validatedHooks = [];
+    
+    for (const hookObj of hooks) {
+      const hook = typeof hookObj === 'string' ? hookObj : hookObj.hook;
+      
+      // Validation checks
+      const wordCount = hook.split(' ').length;
+      const exceedsLimit = wordCount > brandConfig.limites.hook;
+      
+      // Check for forbidden words
+      const hasForbiddenWords = brandConfig.palabras_prohibidas.some((word: string) => 
+        hook.toLowerCase().includes(word.toLowerCase())
+      );
+      
+      // Check for generic CTAs
+      const hasGenericCTA = /\b(clic aquí|click here|más info|more info)\b/i.test(hook);
+      
+      // Calculate score (0-100)
+      let score = 100;
+      if (exceedsLimit) score -= 30;
+      if (hasForbiddenWords) score -= 40;
+      if (hasGenericCTA) score -= 20;
+      
+      // Auto-correct if needed
+      let correctedHook = hook;
+      if (score < 70) {
+        const correctionPrompt = `Fix this hook according to brand guidelines:
+
+Hook: "${hook}"
+
+Issues:
+${exceedsLimit ? `- Exceeds ${brandConfig.limites.hook} word limit (currently ${wordCount} words)` : ''}
+${hasForbiddenWords ? `- Contains forbidden words: ${brandConfig.palabras_prohibidas.join(', ')}` : ''}
+${hasGenericCTA ? '- Has generic CTA (replace with something specific)' : ''}
+
+Brand Config:
+- Industry: ${brandConfig.industria}
+- Target: ${brandConfig.audiencia_objetivo}
+- Max words: ${brandConfig.limites.hook}
+
+Return ONLY the corrected hook text, no explanations.`;
+
+        correctedHook = await geminiService.generateText({ prompt: correctionPrompt });
+        correctedHook = correctedHook.trim().replace(/^["']|["']$/g, '');
+        
+        // Recalculate score for corrected hook
+        const newWordCount = correctedHook.split(' ').length;
+        score = 100;
+        if (newWordCount > brandConfig.limites.hook) score -= 15;
+      }
+      
+      validatedHooks.push({
+        original: hook,
+        corrected: correctedHook,
+        score,
+        wordCount,
+        issues: {
+          exceedsLimit,
+          hasForbiddenWords,
+          hasGenericCTA,
+        },
+        passed: score >= 70,
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        validatedHooks,
+        totalHooks: hooks.length,
+        passedHooks: validatedHooks.filter(h => h.passed).length,
+        brandConfig,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Hook validation failed',
     };
   }
 }
