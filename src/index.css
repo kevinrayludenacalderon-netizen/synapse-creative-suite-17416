@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Professional Dark Theme - Base Colors */
+    --background: 220 15% 8%;
+    --foreground: 210 20% 98%;
+    
+    --canvas-bg: 220 15% 10%;
+    --canvas-grid: 220 10% 15%;
+    
+    /* Category Colors - Copy Research (Blue) */
+    --copy-primary: 210 100% 60%;
+    --copy-glow: 210 100% 55%;
+    --copy-muted: 210 60% 35%;
+    
+    /* Category Colors - VFX (Purple) */
+    --vfx-primary: 270 80% 65%;
+    --vfx-glow: 270 90% 60%;
+    --vfx-muted: 270 50% 40%;
+    
+    /* Category Colors - Image Generation (Green) */
+    --image-primary: 150 70% 55%;
+    --image-glow: 150 80% 50%;
+    --image-muted: 150 50% 35%;
+    
+    /* UI Elements */
+    --card: 220 15% 12%;
+    --card-foreground: 210 20% 98%;
+    --card-border: 220 10% 20%;
+    
+    --popover: 220 15% 10%;
+    --popover-foreground: 210 20% 98%;
+    
+    --primary: 210 100% 60%;
+    --primary-foreground: 220 15% 8%;
+    
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 210 20% 98%;
+    
+    --muted: 220 15% 18%;
+    --muted-foreground: 220 10% 60%;
+    
+    --accent: 210 100% 60%;
+    --accent-foreground: 220 15% 8%;
+    
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 210 20% 98%;
+    
+    --border: 220 10% 20%;
+    --input: 220 15% 15%;
+    --ring: 210 100% 60%;
+    
+    --radius: 0.75rem;
+    
+    /* Node Styles */
+    --node-bg: 220 15% 14%;
+    --node-border: 220 10% 25%;
+    --node-header: 220 15% 10%;
+    --node-shadow: 0 8px 32px -8px hsl(220 15% 5% / 0.6);
+    
+    /* Glass Effect */
+    --glass-bg: 220 15% 12% / 0.8;
+    --glass-border: 220 10% 30% / 0.3;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 60%), hsl(270 80% 65%));
+    --gradient-glow: radial-gradient(circle at center, hsl(210 100% 60% / 0.2), transparent 70%);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground overflow-hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* Glass Effect Utility */
+.glass-effect {
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--glass-border));
+}
+
+/* Category Glow Effects */
+.glow-copy {
+  box-shadow: 0 0 20px hsl(var(--copy-glow) / 0.3);
+}
+
+.glow-vfx {
+  box-shadow: 0 0 20px hsl(var(--vfx-glow) / 0.3);
+}
+
+.glow-image {
+  box-shadow: 0 0 20px hsl(var(--image-glow) / 0.3);
+}
