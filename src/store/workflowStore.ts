@@ -121,6 +121,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         executeHookGenerator,
         executeBrandConfig,
         executeHookValidator,
+        executeBodyGenerator,
+        executeCTAGenerator,
+        executeCopyAssembler,
         executeImageInput,
         executeDeepAnalysis,
         executeEffectApplier,
@@ -166,6 +169,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
               break;
             case 'hookValidator':
               result = await executeHookValidator(node.data, inputs);
+              break;
+            case 'bodyGenerator':
+              result = await executeBodyGenerator(node.data, inputs);
+              break;
+            case 'ctaGenerator':
+              result = await executeCTAGenerator(node.data, inputs);
+              break;
+            case 'copyAssembler':
+              result = await executeCopyAssembler(node.data, inputs);
               break;
             case 'imageInput':
               result = await executeImageInput(node.data);

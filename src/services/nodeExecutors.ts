@@ -67,6 +67,7 @@ export async function executeHookGenerator(
     const inputText = nodeData.inputText || getInputValue(inputs, 'text') || '';
     const frameworks = nodeData.frameworks || ['AIDA', 'PAS'];
     const count = nodeData.count || 5;
+    const hookType = nodeData.hookType || 'desire';
     
     // Get brand config if available
     const brandConfig = getInputValue(inputs, 'brandConfig');
@@ -74,6 +75,15 @@ export async function executeHookGenerator(
     if (!inputText) {
       throw new Error('No input text provided');
     }
+
+    // Hook type descriptions based on Alex Hormozi's framework
+    const hookTypePrompts = {
+      desire: 'You are an expert marketer (Alex Hormozi style). Generate hooks that promise a desired transformation or outcome. Focus on what the audience wants to achieve or become.',
+      frustration: 'You are an expert marketer (Alex Hormozi style). Generate hooks that expose a common mistake, problem, or pain point. Make the audience feel understood in their struggle.',
+      discovery: 'You are an expert marketer (Alex Hormozi style). Generate hooks that reveal a surprising insight, counterintuitive truth, or hidden opportunity. Create curiosity about something they didn\'t know.',
+      story: 'You are an expert marketer (Alex Hormozi style). Generate hooks that start with a compelling story, anecdote, or personal experience. Make it relatable and engaging.',
+      result: 'You are an expert marketer (Alex Hormozi style). Generate hooks that showcase evidence, proof, or before/after transformations. Use specific numbers and tangible results.'
+    };
 
     const frameworkDescriptions = {
       AIDA: 'Attention, Interest, Desire, Action',
@@ -84,18 +94,22 @@ export async function executeHookGenerator(
 
     const selectedFrameworks = frameworks.map((f: string) => `${f} (${frameworkDescriptions[f as keyof typeof frameworkDescriptions]})`).join(', ');
 
-    let prompt = `Generate ${count} attention-grabbing hooks for the following content. Use these frameworks: ${selectedFrameworks}
+    let prompt = `${hookTypePrompts[hookType as keyof typeof hookTypePrompts]}
 
-Content: ${inputText}`;
+Generate ${count} attention-grabbing hooks using the "${hookType}" approach.
+
+Frameworks to use: ${selectedFrameworks}
+
+Task/Brief: ${inputText}`;
 
     // Add brand config context if available
     if (brandConfig) {
       prompt += `
 
-CONTEXT (Brand Configuration):
+BRAND CONTEXT:
 - Industry: ${brandConfig.industria}
 - Target Audience: ${brandConfig.audiencia_objetivo}
-- FORBIDDEN WORDS (DO NOT USE): ${brandConfig.palabras_prohibidas.join(', ')}
+- FORBIDDEN WORDS (NEVER USE): ${brandConfig.palabras_prohibidas.join(', ')}
 - Word Limit per Hook: ${brandConfig.limites.hook} words
 - Key Concepts to incorporate: ${brandConfig.conceptos_clave.join(', ')}
 
@@ -106,7 +120,7 @@ STRICT RULES:
 4. Use concepts from: ${brandConfig.conceptos_clave.join(', ')}`;
     }
 
-    prompt += `\n\nGenerate ${count} unique, compelling hooks. Format as a JSON array of objects with "hook", "framework", and "wordCount" properties.`;
+    prompt += `\n\nGenerate ${count} unique, compelling hooks. Format as a JSON array of objects with "hook", "framework", "hookType", and "wordCount" properties.`;
 
     const response = await geminiService.generateText({ prompt });
 
@@ -119,6 +133,7 @@ STRICT RULES:
       hooks = response.split('\n').filter(line => line.trim()).map((line, i) => ({
         hook: line.replace(/^\d+\.\s*/, '').replace(/^[-*]\s*/, ''),
         framework: frameworks[i % frameworks.length],
+        hookType,
         wordCount: line.split(' ').length,
       }));
     }
@@ -129,6 +144,7 @@ STRICT RULES:
         hooks: Array.isArray(hooks) ? hooks : [hooks],
         inputText,
         frameworks,
+        hookType,
         brandConfig,
       },
     };
@@ -374,6 +390,169 @@ export async function executeText2Image(nodeData: any): Promise<NodeExecutionRes
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Image generation failed',
+    };
+  }
+}
+
+export async function executeBodyGenerator(
+  nodeData: any,
+  inputs: Record<string, any>
+): Promise<NodeExecutionResult> {
+  try {
+    const hook = getInputValue(inputs, 'validatedHooks')?.[0]?.corrected || 
+                 getInputValue(inputs, 'hooks')?.[0]?.hook || 
+                 nodeData.hook || '';
+    const brief = getInputValue(inputs, 'text') || nodeData.brief || '';
+    const maxWords = nodeData.maxWords || 250;
+    const brandConfig = getInputValue(inputs, 'brandConfig');
+
+    if (!hook) {
+      throw new Error('No hook provided for body generation');
+    }
+
+    if (!brief) {
+      throw new Error('No brief/task provided for body generation');
+    }
+
+    let prompt = `Based on this hook: "${hook}"
+
+Write the body content for this task: ${brief}
+
+Structure (Alex Hormozi):
+1. Brief Development (2-3 sentences expanding on the hook)
+2. Key Insight or Lesson (the "aha" moment or valuable takeaway)
+
+IMPORTANT: Keep total word count between 200-${maxWords} words.
+Be concise, valuable, and maintain the energy from the hook.`;
+
+    if (brandConfig) {
+      prompt += `
+
+BRAND CONTEXT:
+- Industry: ${brandConfig.industria}
+- Target Audience: ${brandConfig.audiencia_objetivo}
+- Key Concepts: ${brandConfig.conceptos_clave.join(', ')}
+- Forbidden Words: ${brandConfig.palabras_prohibidas.join(', ')}
+
+Write in a way that resonates with ${brandConfig.audiencia_objetivo}.`;
+    }
+
+    const generatedBody = await geminiService.generateText({ prompt });
+
+    const wordCount = generatedBody.split(/\s+/).length;
+
+    return {
+      success: true,
+      data: {
+        generatedBody: generatedBody.trim(),
+        hook,
+        brief,
+        wordCount,
+        maxWords,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Body generation failed',
+    };
+  }
+}
+
+export async function executeCTAGenerator(
+  nodeData: any,
+  inputs: Record<string, any>
+): Promise<NodeExecutionResult> {
+  try {
+    const body = getInputValue(inputs, 'generatedBody') || nodeData.body || '';
+    const brandConfig = getInputValue(inputs, 'brandConfig');
+
+    if (!body) {
+      throw new Error('No body content provided for CTA generation');
+    }
+
+    let prompt = `Based on this copy body:
+
+"${body}"
+
+Generate a soft, non-pushy Call-To-Action (CTA) that:
+1. Feels natural and conversational
+2. Invites engagement without being aggressive
+3. Is specific and actionable (NOT generic like "click here" or "más info")
+4. Maintains the tone and energy of the content
+
+Keep it to 1-2 sentences maximum.`;
+
+    if (brandConfig) {
+      prompt += `
+
+BRAND RULES:
+- Target Audience: ${brandConfig.audiencia_objetivo}
+- FORBIDDEN: Generic CTAs, phrases like "clic aquí", "click here", "más info"
+- Industry: ${brandConfig.industria}
+
+The CTA must feel authentic to ${brandConfig.audiencia_objetivo}.`;
+    }
+
+    const generatedCTA = await geminiService.generateText({ prompt });
+
+    return {
+      success: true,
+      data: {
+        generatedCTA: generatedCTA.trim(),
+        body,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'CTA generation failed',
+    };
+  }
+}
+
+export async function executeCopyAssembler(
+  nodeData: any,
+  inputs: Record<string, any>
+): Promise<NodeExecutionResult> {
+  try {
+    const hook = getInputValue(inputs, 'validatedHooks')?.[0]?.corrected || 
+                 getInputValue(inputs, 'hooks')?.[0]?.hook || 
+                 nodeData.hook || '';
+    const body = getInputValue(inputs, 'generatedBody') || nodeData.body || '';
+    const cta = getInputValue(inputs, 'generatedCTA') || nodeData.cta || '';
+
+    if (!hook && !body && !cta) {
+      throw new Error('No content provided to assemble');
+    }
+
+    const parts = [];
+    if (hook) parts.push(hook);
+    if (body) parts.push(body);
+    if (cta) parts.push(cta);
+
+    const finalCopy = parts.join('\n\n');
+    const totalWords = finalCopy.split(/\s+/).length;
+
+    return {
+      success: true,
+      data: {
+        finalCopy,
+        hook,
+        body,
+        cta,
+        totalWords,
+        structure: {
+          hasHook: !!hook,
+          hasBody: !!body,
+          hasCTA: !!cta,
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Copy assembly failed',
     };
   }
 }

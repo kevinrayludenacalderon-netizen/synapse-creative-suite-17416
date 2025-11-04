@@ -23,6 +23,7 @@ export interface HookGeneratorNodeData extends BaseNodeData {
   inputText: string;
   frameworks: string[];
   count: number;
+  hookType?: 'desire' | 'frustration' | 'discovery' | 'story' | 'result';
 }
 
 export interface BrandConfigNodeData extends BaseNodeData {
@@ -41,6 +42,26 @@ export interface HookValidatorNodeData extends BaseNodeData {
   config?: any;
   validatedHooks?: any[];
   scores?: number[];
+}
+
+export interface BodyGeneratorNodeData extends BaseNodeData {
+  hook?: string;
+  brief?: string;
+  maxWords: number;
+  generatedBody?: string;
+}
+
+export interface CTAGeneratorNodeData extends BaseNodeData {
+  body?: string;
+  brandConfig?: any;
+  generatedCTA?: string;
+}
+
+export interface CopyAssemblerNodeData extends BaseNodeData {
+  hook?: string;
+  body?: string;
+  cta?: string;
+  finalCopy?: string;
 }
 
 // VFX Node Types
@@ -88,6 +109,9 @@ export type NodeData =
   | HookGeneratorNodeData
   | BrandConfigNodeData
   | HookValidatorNodeData
+  | BodyGeneratorNodeData
+  | CTAGeneratorNodeData
+  | CopyAssemblerNodeData
   | ImageInputNodeData
   | DeepAnalysisNodeData
   | EffectApplierNodeData
@@ -132,7 +156,7 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
     icon: '🎯',
     description: 'Generate attention-grabbing hooks',
     color: 'hsl(var(--copy-primary))',
-    defaultData: { inputText: '', frameworks: ['AIDA', 'PAS'], count: 5 },
+    defaultData: { inputText: '', frameworks: ['AIDA', 'PAS'], count: 5, hookType: 'desire' },
   },
   brandConfig: {
     type: 'brandConfig',
@@ -157,6 +181,33 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
     description: 'Validate and score hooks',
     color: 'hsl(var(--copy-primary))',
     defaultData: { hooks: [], scores: [] },
+  },
+  bodyGenerator: {
+    type: 'bodyGenerator',
+    label: 'Body Generator',
+    category: ['copy'],
+    icon: '📄',
+    description: 'Generate copy body with insights',
+    color: 'hsl(var(--copy-primary))',
+    defaultData: { maxWords: 250 },
+  },
+  ctaGenerator: {
+    type: 'ctaGenerator',
+    label: 'CTA Generator',
+    category: ['copy'],
+    icon: '🎬',
+    description: 'Generate soft call-to-action',
+    color: 'hsl(var(--copy-primary))',
+    defaultData: {},
+  },
+  copyAssembler: {
+    type: 'copyAssembler',
+    label: 'Copy Assembler',
+    category: ['copy'],
+    icon: '🔗',
+    description: 'Assemble final copy from parts',
+    color: 'hsl(var(--copy-primary))',
+    defaultData: {},
   },
   
   // VFX Nodes

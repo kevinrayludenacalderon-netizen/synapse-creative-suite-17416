@@ -145,11 +145,26 @@ export const CustomNode = memo(({ data, id }: NodeProps) => {
           <div className="space-y-2">
             <textarea
               className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-current"
-              placeholder="Input text to generate hooks from..."
+              placeholder="Input text to generate hooks from (or connect Text Input node)..."
               rows={3}
               value={data.inputText || ''}
               onChange={(e) => updateNode(id, { inputText: e.target.value })}
             />
+            
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground block">Hook Type (Hormozi Framework)</label>
+              <select
+                value={data.hookType || 'desire'}
+                onChange={(e) => updateNode(id, { hookType: e.target.value })}
+                className="w-full px-2 py-1 bg-input border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-current"
+              >
+                <option value="desire">💎 Desire - Promise transformation</option>
+                <option value="frustration">😤 Frustration - Expose problem</option>
+                <option value="discovery">🔍 Discovery - Reveal insight</option>
+                <option value="story">📖 Story - Share experience</option>
+                <option value="result">📊 Result/Proof - Show evidence</option>
+              </select>
+            </div>
             
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Frameworks</label>
@@ -273,6 +288,59 @@ export const CustomNode = memo(({ data, id }: NodeProps) => {
                 <li>✓ Generic CTA detection</li>
                 <li>✓ Auto-correction (score &lt; 70)</li>
                 <li>✓ Scoring (0-100)</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {data.nodeType === 'bodyGenerator' && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Connect validated hooks and brief to generate body content
+            </p>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Max Words</label>
+              <input
+                type="number"
+                className="w-full px-2 py-1 bg-input border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-current"
+                value={data.maxWords || 250}
+                min="200"
+                max="255"
+                onChange={(e) => updateNode(id, { maxWords: parseInt(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Recommended: 200-255 words</p>
+            </div>
+          </div>
+        )}
+
+        {data.nodeType === 'ctaGenerator' && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Connect body content to generate a soft, specific CTA
+            </p>
+            <div className="text-xs">
+              <div className="font-medium text-copy-primary mb-1">CTA Guidelines:</div>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>✓ Natural and conversational</li>
+                <li>✓ Specific and actionable</li>
+                <li>✓ No generic phrases</li>
+                <li>✓ 1-2 sentences max</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {data.nodeType === 'copyAssembler' && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Connect hook, body, and CTA to assemble final copy
+            </p>
+            <div className="text-xs">
+              <div className="font-medium text-copy-primary mb-1">Final Structure:</div>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>1. Hook (Attention grabber)</li>
+                <li>2. Body (Development + Insight)</li>
+                <li>3. CTA (Soft call-to-action)</li>
               </ul>
             </div>
           </div>
@@ -499,6 +567,52 @@ export const CustomNode = memo(({ data, id }: NodeProps) => {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Body Generator Output */}
+          {data.nodeType === 'bodyGenerator' && data.output.generatedBody && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="text-xs font-medium text-copy-primary">
+                Generated Body ({data.output.wordCount} words)
+              </div>
+              <div className="p-2 bg-input rounded text-xs whitespace-pre-wrap text-muted-foreground">
+                {data.output.generatedBody}
+              </div>
+            </div>
+          )}
+
+          {/* CTA Generator Output */}
+          {data.nodeType === 'ctaGenerator' && data.output.generatedCTA && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-copy-primary">Generated CTA</div>
+              <div className="p-2 bg-input rounded text-xs text-muted-foreground">
+                {data.output.generatedCTA}
+              </div>
+            </div>
+          )}
+
+          {/* Copy Assembler Output */}
+          {data.nodeType === 'copyAssembler' && data.output.finalCopy && (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-copy-primary">Final Copy</span>
+                <span className="text-muted-foreground">{data.output.totalWords} words</span>
+              </div>
+              <div className="p-3 bg-input rounded text-xs whitespace-pre-wrap text-muted-foreground border border-border">
+                {data.output.finalCopy}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {data.output.structure.hasHook && (
+                  <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">✓ Hook</span>
+                )}
+                {data.output.structure.hasBody && (
+                  <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">✓ Body</span>
+                )}
+                {data.output.structure.hasCTA && (
+                  <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">✓ CTA</span>
+                )}
+              </div>
             </div>
           )}
           
