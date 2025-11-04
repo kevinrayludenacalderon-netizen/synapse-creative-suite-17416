@@ -65,7 +65,6 @@ export async function executeHookGenerator(
 ): Promise<NodeExecutionResult> {
   try {
     const inputText = nodeData.inputText || getInputValue(inputs, 'text') || '';
-    const frameworks = nodeData.frameworks || ['AIDA', 'PAS'];
     const count = nodeData.count || 5;
     const hookType = nodeData.hookType || 'desire';
     
@@ -77,50 +76,52 @@ export async function executeHookGenerator(
     }
 
     // Hook type descriptions based on Alex Hormozi's framework
-    const hookTypePrompts = {
-      desire: 'You are an expert marketer (Alex Hormozi style). Generate hooks that promise a desired transformation or outcome. Focus on what the audience wants to achieve or become.',
-      frustration: 'You are an expert marketer (Alex Hormozi style). Generate hooks that expose a common mistake, problem, or pain point. Make the audience feel understood in their struggle.',
-      discovery: 'You are an expert marketer (Alex Hormozi style). Generate hooks that reveal a surprising insight, counterintuitive truth, or hidden opportunity. Create curiosity about something they didn\'t know.',
-      story: 'You are an expert marketer (Alex Hormozi style). Generate hooks that start with a compelling story, anecdote, or personal experience. Make it relatable and engaging.',
-      result: 'You are an expert marketer (Alex Hormozi style). Generate hooks that showcase evidence, proof, or before/after transformations. Use specific numbers and tangible results.'
+    const hookTypeLogic = {
+      desire: 'Promise a fast or desired transformation. Focus on the end result they want. Example: "I created a brand in 24 hours using only AI."',
+      frustration: 'Expose a common mistake or problem. Make them feel understood. Example: "Your brand doesn\'t need more colors. It needs this."',
+      discovery: 'Reveal something new or counterintuitive. Create curiosity. Example: "AI doesn\'t replace creatives, it replaces processes."',
+      story: 'Use a brief narrative or real case. Make it relatable. Example: "Two years ago my client couldn\'t sell a single brownie..."',
+      result: 'Show evidence or before/after. Use specific numbers. Example: "This video was 100% AI-generated."'
     };
 
-    const frameworkDescriptions = {
-      AIDA: 'Attention, Interest, Desire, Action',
-      PAS: 'Problem, Agitate, Solution',
-      Curiosity: 'Create curiosity gap',
-      'Problem-Solution': 'State problem and offer solution',
-    };
+    let prompt = `You are a world-class copywriter inspired by Alex Hormozi's framework.
 
-    const selectedFrameworks = frameworks.map((f: string) => `${f} (${frameworkDescriptions[f as keyof typeof frameworkDescriptions]})`).join(', ');
+INPUTS:
+1. BRIEF: ${inputText}`;
 
-    let prompt = `${hookTypePrompts[hookType as keyof typeof hookTypePrompts]}
+    if (brandConfig) {
+      prompt += `
+2. INDUSTRY: ${brandConfig.industria}
+3. TARGET AUDIENCE: ${brandConfig.audiencia_objetivo}
+4. FORBIDDEN WORDS (NEVER USE): ${brandConfig.palabras_prohibidas.join(', ')}
+5. WORD LIMIT PER HOOK: ${brandConfig.limites.hook} words
+6. KEY CONCEPTS: ${brandConfig.conceptos_clave.join(', ')}`;
+    }
 
-Generate ${count} attention-grabbing hooks using the "${hookType}" approach.
+    prompt += `
+7. SELECTED HOOK TYPE: ${hookType}
 
-Frameworks to use: ${selectedFrameworks}
+TASK:
+Generate ${count} hooks for the BRIEF above.
+Follow STRICTLY the logic of the SELECTED HOOK TYPE.
 
-Task/Brief: ${inputText}`;
+HOOK TYPE LOGIC:
+${hookTypeLogic[hookType as keyof typeof hookTypeLogic]}
 
-    // Add brand config context if available
+Apply this logic to the BRIEF${brandConfig ? ` and INDUSTRY` : ''}.`;
+
     if (brandConfig) {
       prompt += `
 
-BRAND CONTEXT:
-- Industry: ${brandConfig.industria}
-- Target Audience: ${brandConfig.audiencia_objetivo}
-- FORBIDDEN WORDS (NEVER USE): ${brandConfig.palabras_prohibidas.join(', ')}
-- Word Limit per Hook: ${brandConfig.limites.hook} words
-- Key Concepts to incorporate: ${brandConfig.conceptos_clave.join(', ')}
-
 STRICT RULES:
-1. Never use forbidden words
+1. NEVER use forbidden words: ${brandConfig.palabras_prohibidas.join(', ')}
 2. Keep each hook under ${brandConfig.limites.hook} words
 3. Speak directly to: ${brandConfig.audiencia_objetivo}
-4. Use concepts from: ${brandConfig.conceptos_clave.join(', ')}`;
+4. Incorporate concepts from: ${brandConfig.conceptos_clave.join(', ')}
+5. Make it specific and compelling for ${brandConfig.industria} industry`;
     }
 
-    prompt += `\n\nGenerate ${count} unique, compelling hooks. Format as a JSON array of objects with "hook", "framework", "hookType", and "wordCount" properties.`;
+    prompt += `\n\nGenerate ${count} unique, compelling hooks. Format as a JSON array of objects with "hook", "hookType", and "wordCount" properties.`;
 
     const response = await geminiService.generateText({ prompt });
 
@@ -130,9 +131,8 @@ STRICT RULES:
       hooks = JSON.parse(response);
     } catch {
       // Fallback: split by lines
-      hooks = response.split('\n').filter(line => line.trim()).map((line, i) => ({
+      hooks = response.split('\n').filter(line => line.trim()).map((line) => ({
         hook: line.replace(/^\d+\.\s*/, '').replace(/^[-*]\s*/, ''),
-        framework: frameworks[i % frameworks.length],
         hookType,
         wordCount: line.split(' ').length,
       }));
@@ -143,7 +143,6 @@ STRICT RULES:
       data: {
         hooks: Array.isArray(hooks) ? hooks : [hooks],
         inputText,
-        frameworks,
         hookType,
         brandConfig,
       },
@@ -399,30 +398,38 @@ export async function executeBodyGenerator(
   inputs: Record<string, any>
 ): Promise<NodeExecutionResult> {
   try {
+    // Get the hook from either validated hooks or regular hooks
     const hook = getInputValue(inputs, 'validatedHooks')?.[0]?.corrected || 
                  getInputValue(inputs, 'hooks')?.[0]?.hook || 
                  nodeData.hook || '';
+    
+    // CRITICAL: Get the brief from the Text Input node
+    // The brief should come from the original text input that was connected to Hook Generator
     const brief = getInputValue(inputs, 'text') || nodeData.brief || '';
+    
     const maxWords = nodeData.maxWords || 250;
     const brandConfig = getInputValue(inputs, 'brandConfig');
 
     if (!hook) {
-      throw new Error('No hook provided for body generation');
+      throw new Error('No hook provided. Connect Hook Generator or Hook Validator to this node.');
     }
 
     if (!brief) {
-      throw new Error('No brief/task provided for body generation');
+      throw new Error('No brief/task provided. Connect the Text Input node to this Body Generator to provide the brief.');
     }
 
-    let prompt = `Based on this hook: "${hook}"
+    let prompt = `You are an expert copywriter following Alex Hormozi's framework.
 
-Write the body content for this task: ${brief}
+TASK: Write the body content (Development + Key Insight) for a post.
 
-Structure (Alex Hormozi):
+ORIGINAL BRIEF: ${brief}
+OPENING HOOK: ${hook}
+
+STRUCTURE:
 1. Brief Development (2-3 sentences expanding on the hook)
 2. Key Insight or Lesson (the "aha" moment or valuable takeaway)
 
-IMPORTANT: Keep total word count between 200-${maxWords} words.
+WORD COUNT: Keep total between 200-${maxWords} words.
 Be concise, valuable, and maintain the energy from the hook.`;
 
     if (brandConfig) {
@@ -431,10 +438,10 @@ Be concise, valuable, and maintain the energy from the hook.`;
 BRAND CONTEXT:
 - Industry: ${brandConfig.industria}
 - Target Audience: ${brandConfig.audiencia_objetivo}
-- Key Concepts: ${brandConfig.conceptos_clave.join(', ')}
-- Forbidden Words: ${brandConfig.palabras_prohibidas.join(', ')}
+- Key Concepts to incorporate: ${brandConfig.conceptos_clave.join(', ')}
+- FORBIDDEN WORDS (avoid): ${brandConfig.palabras_prohibidas.join(', ')}
 
-Write in a way that resonates with ${brandConfig.audiencia_objetivo}.`;
+Write in a way that resonates with ${brandConfig.audiencia_objetivo} in the ${brandConfig.industria} industry.`;
     }
 
     const generatedBody = await geminiService.generateText({ prompt });
